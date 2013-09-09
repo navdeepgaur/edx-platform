@@ -6,6 +6,12 @@
 <script src="${static.url('js/vendor/html5-input-polyfills/number-polyfill.js')}"></script>
 <link rel="stylesheet" type="text/css" href="${static.url('css/vendor/html5-input-polyfills/number-polyfill.css')}" />
 
+<script type="text/javascript">
+% for r in resources:
+    eval("${r.data}");
+% endfor
+</script>
+
 <div class="wrapper wrapper-component-editor">
 	<div class="component-editor">
 		<div class="component-edit-header">
