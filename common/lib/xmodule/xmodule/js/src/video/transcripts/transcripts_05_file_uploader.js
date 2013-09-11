@@ -21,7 +21,7 @@
                 tplContainer = this.$el.find('.transcripts-file-uploader');
 
             if (tplContainer) {
-                if(!tpl) {
+                if (!tpl) {
                     console.error('Couldn\'t load Transcripts File Upload template');
                 }
                 this.template = _.template(tpl);

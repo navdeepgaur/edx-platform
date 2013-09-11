@@ -3,6 +3,7 @@
 
         tagName: 'div',
 
+        // TODO: JS test.
         initialize: function () {
             var metadata = this.$el.data('metadata'),
                 models = this.toModels(metadata);
@@ -16,6 +17,8 @@
         },
 
         // Convert metadata JSON to List of models
+        //
+        // TODO: JS test.
         toModels: function (data) {
             var metadata = (_.isString(data)) ? JSON.parse(data) : data,
                 models = [];
@@ -45,7 +48,7 @@
             youtubeValue = getField(metadataCollection, 'youtube_id_1_0')
                                     .getDisplayValue();
 
-            videoUrl = getField(this.collection,'video_url');
+            videoUrl = getField(this.collection, 'video_url');
 
             youtubeValue = (youtubeValue.length === 11)
                                 ? utils.getYoutubeLink(youtubeValue)
