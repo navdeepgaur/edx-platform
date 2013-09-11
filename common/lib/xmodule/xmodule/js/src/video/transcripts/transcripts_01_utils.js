@@ -123,22 +123,43 @@
             });
         };
 
+        // [Function] _command(action, component_id, videoList, extraParams)
+        //
+        // [Parameters] TODO: Write purpose and type of each parameter.
+        //     action -
+        //     component_id -
+        //     videoList -
+        //     extraParams -
+        //
+        // [Purpose] TODO: Write the purpose of this function.
+        //
+        // [Returns] XMLHttpRequest object. Using this object, we can attach
+        //     callbacks to AJAX request events (for example on 'done', 'fail',
+        //     etc.).
         var _command = (function () {
+            // We will store the XMLHttpRequest object that $.ajax() function
+            // returns, to abort an ongoing AJAX request (if necessary) upon
+            // subsequent invocations of _command() function.
+            //
+            // A new AJAX request will be made on each invocation of the
+            // _command() function.
             var xhr = null;
 
             return function (action, component_id, videoList, extraParams) {
-                var params, data;                    
+                var params, data;
+
+                console.log('[_command]: arguments = ', arguments);
 
                 if (extraParams) {
                     if ($.isPlainObject(extraParams)) {
-                        params = extraParams;   
+                        params = extraParams;
                     } else {
-                        params = {params: extraParams};   
+                        params = {params: extraParams};
                     }
                 }
 
                 data = $.extend(
-                    { id: component_id }, 
+                    { id: component_id },
                     { videos: videoList },
                     params
                 );
