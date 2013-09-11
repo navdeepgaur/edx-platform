@@ -1,6 +1,6 @@
 <div class="wrapper-comp-setting metadata-videolist-enum">
   <label class="label setting-label" for="<%= uniqueId %>"><%= model.get('display_name')%></label>
-  <div id="<%= uniqueId %>" class="wrapper-videolist-settings">
+  <div class="wrapper-videolist-settings">
     <div class="wrapper-videolist-url"><input type="text" id="<%= uniqueId %>"  class="input videolist-url" value="<%= model.get('value')[0] %>"></div>
     <div class="wrapper-videolist-urls">
       <a href="#" class="collapse-action collapse-setting">
