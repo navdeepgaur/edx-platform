@@ -286,6 +286,23 @@
             ).filter(_.identity);
         },
 
+        getVideoObjectsList: function () {
+            var parseLink = Transcripts.Utils.parseLink,
+                values = this.getValueFromEditor(),
+                arr = [],
+                data;
+
+            for (var i = 0, len = values.length; i < len; i += 1) {
+                data = parseLink(values[i]);
+
+                if (data.mode !== 'incorrect') {
+                    arr.push(data);
+                }
+            }
+
+            return arr;
+        },
+
         setValueInEditor: function (value) {
             var parseLink = Transcripts.Utils.parseLink,
                 list = this.$el.find('.input'),
@@ -363,20 +380,36 @@
 
             var entry = $(event.currentTarget).val(),
                 data = Transcripts.Utils.parseLink(entry),
+                isNotEmpty = Boolean(entry),
                 $el = $(event.currentTarget);
 
-            if (this.checkValidity(data)) {
+            if (this.checkValidity(data, isNotEmpty)) {
                 this.updateModel();
             } else if ($el.hasClass('videolist-url')){
                 this.closeAdditional();
-            };
+            }
         },
 
-        checkValidity: function(data){
+        isUniq: function (dataList) {
+            var arr = _.pluck(dataList, 'type'),
+                uniqArr = _.uniq(arr);
 
-            var self = this
+            return arr.length === uniqArr.length;
+        },
 
-            if (data.mode === 'incorrect') {
+        checkValidity: function(data, showErrorModeMessage) {
+            var self = this,
+                dataList = this.getVideoObjectsList();
+
+            if (!this.isUniq(dataList)){
+                this.messanger
+                    .render('not_found')
+                    .showError('Link types should be unique.', true);
+
+                return false;
+            }
+
+            if (data.mode === 'incorrect' && showErrorModeMessage) {
                 this.messanger
                     .render('not_found')
                     .showError('Incorrect url format.', true);
@@ -384,23 +417,33 @@
                 return false;
             }
 
-            this.fetchCaptions(data)
-                .always(function(response, statusText){
-                    if (response.status === 200) {
+            this.fetchCaptions(dataList)
+                .done(function(resp){
+                    if (resp.youtube_local && resp.youtube_server) {
+                        self.messanger.render('conflict');
+                    } else if (resp.youtube_local || resp.html5_local) {
                         self.messanger.render('found');
+                    } else if (resp.youtube_server) {
+                        self.messanger.render('on_youtube');
                     } else {
                         self.messanger.render('not_found');
                     }
+                })
+                .fail(function(resp){
+                    self.messanger.render('not_found');
                 });
 
             console.log(data);
             return true;
         },
 
-        fetchCaptions: function(data){
-            var data = $.extend({id: this.location_id}, data);
+        fetchCaptions: function(dataList){
+            var data = this.prepareRequestData(dataList);
 
-            if (this.xhr && this.xhr.abort) this.xhr.abort();
+            if (this.xhr && this.xhr.abort) {
+                this.xhr.abort();
+            }
+
             this.xhr = $.ajax({
                 url: '/check_subtitles',
                 data: data,
@@ -408,6 +451,10 @@
             });
 
             return this.xhr;
+        },
+
+        prepareRequestData: function (data) {
+            return $.extend({id: this.component_id}, {data: data});
         }
     });
 
@@ -605,6 +652,5 @@
             }
         }
     });
-
 
 }(this));

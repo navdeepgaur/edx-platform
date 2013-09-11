@@ -90,17 +90,9 @@
                 }
             }
             .action{
-                @include white-button;
-                margin-bottom: $baseline/2;
+                @extend .btn-primary-blue;
                 @extend .t-action3;
-
-                &.is-disabled,
-                &[disabled="disabled"]{
-                    box-shadow: none !important;
-                    cursor: default !important;
-                    background: $mediumGrey !important;
-                    border: $mediumGrey !important;
-                }
+                margin-bottom: ($baseline/2);
             }
         }
     }
