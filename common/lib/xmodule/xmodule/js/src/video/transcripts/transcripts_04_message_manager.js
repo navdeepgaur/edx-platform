@@ -24,7 +24,7 @@
         render: function (template) {
             var tpl = $(this.templates[template]).text();
 
-            if(!tpl) {
+            if (!tpl) {
                 console.error('Couldn\'t load Transcripts status template');
             }
             this.template = _.template(tpl);
