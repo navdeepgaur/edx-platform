@@ -20,9 +20,7 @@ urlpatterns = ('',  # nopep8
     url(r'^delete_item$', 'contentstore.views.delete_item', name='delete_item'),
     url(r'^create_item$', 'contentstore.views.create_item', name='create_item'),
 
-    url(r'^upload_subtitles$', 'contentstore.views.upload_subtitles', name='upload_subtitles'),
-    url(r'^download_subtitles$', 'contentstore.views.download_subtitles', name='download_subtitles'),
-    url(r'^check_subtitles$', 'contentstore.views.check_subtitles', name='check_subtitles'),
+    url(r'^transcripts/(?P<action>[^/]+)$', 'contentstore.views.process_transcripts', name='process_transcripts'),
 
     url(r'^create_draft$', 'contentstore.views.create_draft', name='create_draft'),
     url(r'^publish_draft$', 'contentstore.views.publish_draft', name='publish_draft'),

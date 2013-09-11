@@ -20,16 +20,14 @@ from xmodule.contentstore.content import StaticContent
 from xmodule.exceptions import NotFoundError
 
 from util.json_request import expect_json, JsonResponse
-from ..utils import (get_modulestore, manage_video_subtitles,
+from ..utils import (get_modulestore, manage_video_transcripts,
                      return_ajax_status, generate_subs_from_source,
                      generate_srt_from_sjson, requests as rqsts)
 from .access import has_access
 from .requests import _xmodule_recurse
 from xmodule.x_module import XModuleDescriptor
 
-__all__ = [
-    'save_item', 'create_item', 'delete_item', 'upload_subtitles',
-    'download_subtitles', 'check_subtitles']
+__all__ = ['save_item', 'create_item', 'delete_item', 'process_transcripts']
 
 log = logging.getLogger(__name__)
 
@@ -108,7 +106,7 @@ def save_item(request):
         return JsonResponse()
 
     if new_item.category == 'video':
-        manage_video_subtitles(old_item, new_item)
+        manage_video_transcripts(old_item, new_item)
 
     return JsonResponse()
 
@@ -196,10 +194,9 @@ def delete_item(request):
     return JsonResponse()
 
 
-@login_required
 @return_ajax_status
-def upload_subtitles(request):
-    """Try to upload subtitles for current module."""
+def upload_transcripts(request):
+    """Try to upload transcripts for current module."""
 
     # This view return True/False, cause we use `return_ajax_status`
     # view decorator.
@@ -234,7 +231,7 @@ def upload_subtitles(request):
         raise PermissionDenied()
 
     if item.category != 'video':
-        log.error('Subtitles are supported only for "video" modules.')
+        log.error('transcripts are supported only for "video" modules.')
         return False
 
     speed_subs = {
@@ -244,8 +241,8 @@ def upload_subtitles(request):
         1.5: item.youtube_id_1_5
     }
 
-    if any(speed_subs.values()):
-        log.error("We don't support uploading subs for Youtube video modules.")
+    if any(speed_subs.values()) and not any(item.html5_sources):
+        log.error("Converting transcripts to youtube modules.")
         return False
     elif any(item.html5_sources):
         sub_attr = slugify(source_subs_name)
@@ -269,9 +266,8 @@ def upload_subtitles(request):
     return status
 
 
-@login_required
-def download_subtitles(request):
-    """Try to download subtitles for current modules."""
+def download_transcripts(request):
+    """Try to download transcripts for current modules."""
 
     item_location = request.GET.get('id')
     if not item_location:
@@ -289,7 +285,7 @@ def download_subtitles(request):
         raise PermissionDenied()
 
     if item.category != 'video':
-        log.error('Subtitles are supported only for video" modules.')
+        log.error('transcripts are supported only for video" modules.')
         raise Http404
 
     speed = 1
@@ -308,7 +304,7 @@ def download_subtitles(request):
         content_location = StaticContent.compute_location(
             item.location.org, item.location.course, filename)
         try:
-            sjson_subtitles = contentstore().find(content_location)
+            sjson_transcripts = contentstore().find(content_location)
         except NotFoundError:
             log.error("Can't find content in storage for non-youtube sub.")
             raise Http404
@@ -318,7 +314,7 @@ def download_subtitles(request):
         log.error('Blank "sub" field.')
         raise Http404
 
-    str_subs = generate_srt_from_sjson(json.loads(sjson_subtitles.data), speed)
+    str_subs = generate_srt_from_sjson(json.loads(sjson_transcripts.data), speed)
     if str_subs is None:
         raise Http404
 
@@ -329,64 +325,91 @@ def download_subtitles(request):
     return response
 
 
-@login_required
-def check_subtitles(request):
-    """Check subtitles availability for current modules."""
-    subtitles_presence = {
+def check_transcripts(request):
+    """Check transcripts availability for current modules."""
+    transcripts_presence = {
         'html5_local': False,
         'youtube_local': False,
         'youtube_server': False,
         'status': 'Error'
     }
-    # import ipdb; ipdb.set_trace()
     video_id = request.POST.get('video_id')
     if not video_id:
         log.error('Incoming data without "video_id" property.')
-        return JsonResponse(subtitles_presence)
+        return JsonResponse(transcripts_presence)
 
     item_location = request.POST.get('id')
     try:
         item = modulestore().get_item(item_location)
     except (ItemNotFoundError, InvalidLocationError):
         log.error("Can't find item by location.")
-        return JsonResponse(subtitles_presence)
+        return JsonResponse(transcripts_presence)
 
     # Check permissions for this user within this course.
     if not has_access(request.user, item_location):
         raise PermissionDenied()
 
     if item.category != 'video':
-        log.error('Subtitles are supported only for "video" modules.')
-        return JsonResponse(subtitles_presence)
+        log.error('transcripts are supported only for "video" modules.')
+        return JsonResponse(transcripts_presence)
 
-    subtitles_presence['status'] = 'Success'
+    transcripts_presence['status'] = 'Success'
 
-    # Check for youtube local subtitles presense
+    # Check for youtube local transcripts presense
     filename = 'subs_{0}.srt.sjson'.format(video_id)
     content_location = StaticContent.compute_location(
         item.location.org, item.location.course, filename)
     try:
         contentstore().find(content_location)
-        subtitles_presence['youtube_local'] = True
+        transcripts_presence['youtube_local'] = True
     except NotFoundError:
-        log.error("Can't find subtitles in storage for youtube id: {}".format(video_id))
+        log.error("Can't find transcripts in storage for youtube id: {}".format(video_id))
 
-    # Check for youtube server subtitles presence
+    # Check for youtube server transcripts presence
     data = rqsts.get(
         "http://video.google.com/timedtext",
         params={'lang': 'en', 'v': video_id}
     )
     if data.status_code == 200 and data.text:
-        subtitles_presence['youtube_server'] = True
+        transcripts_presence['youtube_server'] = True
 
-    # Check for html5 local subtitles presence
+    # Check for html5 local transcripts presence
     filename = 'subs_{0}.srt.sjson'.format(video_id)
     content_location = StaticContent.compute_location(
         item.location.org, item.location.course, filename)
     try:
         contentstore().find(content_location)
-        subtitles_presence['html5_local'] = True
+        transcripts_presence['html5_local'] = True
     except NotFoundError:
-        log.error("Can't find subtitles in storage for non-youtube video_id: {}".format(video_id))
+        log.error("Can't find transcripts in storage for non-youtube video_id: {}".format(video_id))
 
-    return JsonResponse(subtitles_presence)
+    return JsonResponse(transcripts_presence)
+
+
+def choose_transcripts(request):
+    """
+    Replaces html5 subtitles, presented for both html5 sources,
+    with choosen one.
+    """
+    pass
+
+def replace_transcripts(request):
+    """
+    Replaces all transcripts with youtube ones.
+    """
+    pass
+
+
+@login_required
+def process_transcripts(request, action):
+    """
+    Dispatcher for trascripts actions.
+    """
+    allowed_actions = {
+        'upload': upload_transcripts,
+        'donwload': download_transcripts,
+        'check': check_transcripts,
+        'choose': choose_transcripts,
+        'replace': replace_transcripts
+    }
+    return allowed_actions.get(action, lambda x: JsonResponse())(request)

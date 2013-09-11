@@ -266,14 +266,14 @@ class TestEditItem(CourseTestCase):
         self.assertEqual(sequential.start, datetime.datetime(2010, 9, 12, 14, 0, tzinfo=UTC))
 
 
-class BaseSubtitles(CourseTestCase):
-    """Base test class for subtitles tests."""
+class Basetranscripts(CourseTestCase):
+    """Base test class for transcripts tests."""
 
     org = 'MITx'
     number = '999'
 
     def clear_subs_content(self):
-        """Remove, if subtitles content exists."""
+        """Remove, if transcripts content exists."""
         for youtube_id in self.get_youtube_ids().values():
             filename = 'subs_{0}.srt.sjson'.format(youtube_id)
             content_location = StaticContent.compute_location(
@@ -286,7 +286,7 @@ class BaseSubtitles(CourseTestCase):
 
     def setUp(self):
         """Create initial data."""
-        super(BaseSubtitles, self).setUp()
+        super(Basetranscripts, self).setUp()
 
         # Add video module
         data = {
@@ -298,15 +298,15 @@ class BaseSubtitles(CourseTestCase):
         self.item_location = json.loads(resp.content).get('id')
         self.assertEqual(resp.status_code, 200)
 
-        # hI10vDNYz4M - valid Youtube ID with subtitles.
+        # hI10vDNYz4M - valid Youtube ID with transcripts.
         # JMD_ifUUfsU, AKqURZnYqpk, DYpADpL7jAY - valid Youtube IDs
-        # without subtitles.
+        # without transcripts.
         data = '<video youtube="0.75:JMD_ifUUfsU,1.0:hI10vDNYz4M,1.25:AKqURZnYqpk,1.50:DYpADpL7jAY" />'
         modulestore().update_item(self.item_location, data)
 
         self.item = modulestore().get_item(self.item_location)
 
-        # Remove all subtitles for current module.
+        # Remove all transcripts for current module.
         self.clear_subs_content()
 
     def get_youtube_ids(self):
@@ -321,17 +321,17 @@ class BaseSubtitles(CourseTestCase):
         }
 
 
-class TestImportSubtitlesFromYoutube(BaseSubtitles):
+class TestImporttranscriptsFromYoutube(Basetranscripts):
     """Tests for saving video item."""
 
     def test_success_video_module_subs_importing(self):
-        # Import subtitles.
+        # Import transcripts.
         resp = self.client.post(
             reverse('save_item'), {'id': self.item_location, 'metadata': {}})
 
         self.assertEqual(resp.status_code, 204)
 
-        # Check assets status after importing subtitles.
+        # Check assets status after importing transcripts.
         for youtube_id in self.get_youtube_ids().values():
             filename = 'subs_{0}.srt.sjson'.format(youtube_id)
             content_location = StaticContent.compute_location(
@@ -342,7 +342,7 @@ class TestImportSubtitlesFromYoutube(BaseSubtitles):
         data = '<video youtube="0.75:BAD_YOUTUBE_ID1,1:BAD_YOUTUBE_ID2,1.25:BAD_YOUTUBE_ID3,1.5:BAD_YOUTUBE_ID4" />'
         modulestore().update_item(self.item_location, data)
 
-        # Import subtitles.
+        # Import transcripts.
         resp = self.client.post(
             reverse('save_item'), {'id': self.item_location, 'metadata': {}})
 
@@ -356,18 +356,18 @@ class TestImportSubtitlesFromYoutube(BaseSubtitles):
                 NotFoundError, contentstore().find, content_location)
 
     def tearDown(self):
-        super(TestImportSubtitlesFromYoutube, self).tearDown()
+        super(TestImporttranscriptsFromYoutube, self).tearDown()
 
-        # Remove all subtitles for current module.
+        # Remove all transcripts for current module.
         self.clear_subs_content()
 
 
-class TestUploadSubtitles(BaseSubtitles):
-    """Tests for '/upload_subtitles' url."""
+class TestUploadtranscripts(Basetranscripts):
+    """Tests for '/upload_transcripts' url."""
 
     def setUp(self):
         """Create initial data."""
-        super(TestUploadSubtitles, self).setUp()
+        super(TestUploadtranscripts, self).setUp()
 
         self.good_srt_file = tempfile.NamedTemporaryFile(suffix='.srt')
         self.good_srt_file.write("""
@@ -408,7 +408,7 @@ At the left we can see...
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.good_srt_file
@@ -427,7 +427,7 @@ At the left we can see...
         self.assertTrue(contentstore().find(content_location))
 
     def test_fail_video_module_youtube_subs_uploading(self):
-        # Check assets status before uploading subtitles.
+        # Check assets status before uploading transcripts.
         for youtube_id in self.get_youtube_ids().values():
             filename = 'subs_{0}.srt.sjson'.format(youtube_id)
             content_location = StaticContent.compute_location(
@@ -436,7 +436,7 @@ At the left we can see...
                 NotFoundError, contentstore().find, content_location)
 
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.good_srt_file
@@ -448,7 +448,7 @@ At the left we can see...
         item = modulestore().get_item(self.item_location)
         self.assertEqual(item.sub, '')
 
-        # Check assets status after uploading subtitles.
+        # Check assets status after uploading transcripts.
         for youtube_id in self.get_youtube_ids().values():
             filename = 'subs_{0}.srt.sjson'.format(youtube_id)
             content_location = StaticContent.compute_location(
@@ -458,14 +458,14 @@ At the left we can see...
 
     def test_fail_data_without_id(self):
         resp = self.client.post(
-            reverse('upload_subtitles'), {'file': self.good_srt_file})
+            reverse('upload_transcripts'), {'file': self.good_srt_file})
 
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
 
     def test_fail_data_without_file(self):
         resp = self.client.post(
-            reverse('upload_subtitles'), {'id': self.item_location})
+            reverse('upload_transcripts'), {'id': self.item_location})
 
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
@@ -473,7 +473,7 @@ At the left we can see...
     def test_fail_data_with_bad_location(self):
         # Test for raising `InvalidLocationError` exception.
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': 'BAD_LOCATION',
                 'file': self.good_srt_file
@@ -484,7 +484,7 @@ At the left we can see...
 
         # Test for raising `ItemNotFoundError` exception.
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': '{0}_{1}'.format(self.item_location, 'BAD_LOCATION'),
                 'file': self.good_srt_file
@@ -507,7 +507,7 @@ At the left we can see...
 
         # Videoalpha module: testing
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': item_location,
                 'file': self.good_srt_file
@@ -520,7 +520,7 @@ At the left we can see...
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.good_srt_file
@@ -538,7 +538,7 @@ At the left we can see...
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.good_srt_file
@@ -551,7 +551,7 @@ At the left we can see...
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.good_srt_file
@@ -562,7 +562,7 @@ At the left we can see...
 
     def test_fail_bad_data_srt_file(self):
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.bad_data_srt_file
@@ -573,7 +573,7 @@ At the left we can see...
 
     def test_fail_bad_name_srt_file(self):
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': self.bad_name_srt_file
@@ -596,7 +596,7 @@ At the left we can see...
         srt_file.seek(0)
 
         resp = self.client.post(
-            reverse('upload_subtitles'),
+            reverse('upload_transcripts'),
             {
                 'id': self.item_location,
                 'file': srt_file
@@ -606,18 +606,18 @@ At the left we can see...
         self.assertFalse(json.loads(resp.content).get('success'))
 
     def tearDown(self):
-        super(TestUploadSubtitles, self).tearDown()
+        super(TestUploadtranscripts, self).tearDown()
 
         self.good_srt_file.close()
         self.bad_data_srt_file.close()
         self.bad_name_srt_file.close()
 
 
-class TestDownloadSubtitles(BaseSubtitles):
-    """Tests for '/download_subtitles' url."""
+class TestDownloadtranscripts(Basetranscripts):
+    """Tests for '/download_transcripts' url."""
 
     def save_subs_to_store(self, subs, subs_id):
-        """Save subtitles into `StaticContent`."""
+        """Save transcripts into `StaticContent`."""
         filedata = json.dumps(subs, indent=2)
         mime_type = 'application/json'
         filename = 'subs_{0}.srt.sjson'.format(subs_id)
@@ -630,7 +630,7 @@ class TestDownloadSubtitles(BaseSubtitles):
         return content_location
 
     def remove_subs_from_store(self, subs_id):
-        """Remove from store, if subtitles content exists."""
+        """Remove from store, if transcripts content exists."""
         filename = 'subs_{0}.srt.sjson'.format(subs_id)
         content_location = StaticContent.compute_location(
             self.org, self.number, filename)
@@ -656,7 +656,7 @@ class TestDownloadSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, 'JMD_ifUUfsU')
 
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': self.item_location})
+            reverse('download_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 404)
 
     def test_success_download_nonyoutube(self):
@@ -682,29 +682,29 @@ class TestDownloadSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, subs_id)
 
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': self.item_location})
+            reverse('download_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 200)
 
         utils.remove_subs_from_store(subs_id, self.item)
 
     def test_fail_data_without_file(self):
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': ''})
+            reverse('download_transcripts'), {'id': ''})
         self.assertEqual(resp.status_code, 404)
 
         resp = self.client.get(
-            reverse('download_subtitles'), {})
+            reverse('download_transcripts'), {})
         self.assertEqual(resp.status_code, 404)
 
     def test_fail_data_with_bad_location(self):
         # Test for raising `InvalidLocationError` exception.
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': 'BAD_LOCATION'})
+            reverse('download_transcripts'), {'id': 'BAD_LOCATION'})
         self.assertEqual(resp.status_code, 404)
 
         # Test for raising `ItemNotFoundError` exception.
         resp = self.client.get(
-            reverse('download_subtitles'),
+            reverse('download_transcripts'),
             {'id': '{0}_{1}'.format(self.item_location, 'BAD_LOCATION')})
         self.assertEqual(resp.status_code, 404)
 
@@ -739,7 +739,7 @@ class TestDownloadSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, subs_id)
 
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': item_location})
+            reverse('download_transcripts'), {'id': item_location})
         self.assertEqual(resp.status_code, 404)
 
     def test_fail_nonyoutube_subs_dont_exist(self):
@@ -753,7 +753,7 @@ class TestDownloadSubtitles(BaseSubtitles):
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': self.item_location})
+            reverse('download_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 404)
 
     def test_empty_youtube_attr_and_sub_attr(self):
@@ -767,7 +767,7 @@ class TestDownloadSubtitles(BaseSubtitles):
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': self.item_location})
+            reverse('download_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 404)
 
     def test_fail_bad_sjson_subs(self):
@@ -791,15 +791,15 @@ class TestDownloadSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, 'JMD_ifUUfsU')
 
         resp = self.client.get(
-            reverse('download_subtitles'), {'id': self.item_location})
+            reverse('download_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 404)
 
 
-class TestCheckSubtitles(BaseSubtitles):
-    """Tests for '/check_subtitles' url."""
+class TestChecktranscripts(Basetranscripts):
+    """Tests for '/check_transcripts' url."""
 
     def save_subs_to_store(self, subs, subs_id):
-        """Save subtitles into `StaticContent`."""
+        """Save transcripts into `StaticContent`."""
         filedata = json.dumps(subs, indent=2)
         mime_type = 'application/json'
         filename = 'subs_{0}.srt.sjson'.format(subs_id)
@@ -812,7 +812,7 @@ class TestCheckSubtitles(BaseSubtitles):
         return content_location
 
     def remove_subs_from_store(self, subs_id):
-        """Remove from store, if subtitles content exists."""
+        """Remove from store, if transcripts content exists."""
         filename = 'subs_{0}.srt.sjson'.format(subs_id)
         content_location = StaticContent.compute_location(
             self.org, self.number, filename)
@@ -845,7 +845,7 @@ class TestCheckSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, subs_id)
 
         resp = self.client.post(
-            reverse('check_subtitles'), {
+            reverse('check_transcripts'), {
                 'id': self.item_location,
                 'video_id': subs_id
             }
@@ -874,31 +874,31 @@ class TestCheckSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, 'JMD_ifUUfsU')
 
         resp = self.client.get(
-            reverse('check_subtitles'), {'id': self.item_location})
+            reverse('check_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
 
     def test_fail_data_without_file(self):
         resp = self.client.get(
-            reverse('check_subtitles'), {'id': ''})
+            reverse('check_transcripts'), {'id': ''})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
 
         resp = self.client.get(
-            reverse('check_subtitles'), {})
+            reverse('check_transcripts'), {})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
 
     def test_fail_data_with_bad_location(self):
         # Test for raising `InvalidLocationError` exception.
         resp = self.client.get(
-            reverse('check_subtitles'), {'id': 'BAD_LOCATION'})
+            reverse('check_transcripts'), {'id': 'BAD_LOCATION'})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
 
         # Test for raising `ItemNotFoundError` exception.
         resp = self.client.get(
-            reverse('check_subtitles'),
+            reverse('check_transcripts'),
             {'id': '{0}_{1}'.format(self.item_location, 'BAD_LOCATION')})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
@@ -934,7 +934,7 @@ class TestCheckSubtitles(BaseSubtitles):
         self.save_subs_to_store(subs, subs_id)
 
         resp = self.client.get(
-            reverse('check_subtitles'), {'id': item_location})
+            reverse('check_transcripts'), {'id': item_location})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))
 
@@ -949,6 +949,6 @@ class TestCheckSubtitles(BaseSubtitles):
         modulestore().update_item(self.item_location, data)
 
         resp = self.client.get(
-            reverse('check_subtitles'), {'id': self.item_location})
+            reverse('check_transcripts'), {'id': self.item_location})
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content).get('success'))

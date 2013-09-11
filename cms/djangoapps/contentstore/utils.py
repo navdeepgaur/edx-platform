@@ -275,7 +275,7 @@ def return_ajax_status(view_function):
 
 
 def generate_subs(speed, source_speed, source_subs):
-    """Generate and return subtitles dictionary for speed equal to
+    """Generate and return transcripts dictionary for speed equal to
     `speed` value, using `source_speed` and `source_subs`."""
     if speed == source_speed:
         return source_subs
@@ -295,7 +295,7 @@ def generate_subs(speed, source_speed, source_subs):
 
 
 def save_subs_to_store(subs, subs_id, item):
-    """Save subtitles into `StaticContent`."""
+    """Save transcripts into `StaticContent`."""
     filedata = json.dumps(subs, indent=2)
     mime_type = 'application/json'
     filename = 'subs_{0}.srt.sjson'.format(subs_id)
@@ -309,12 +309,12 @@ def save_subs_to_store(subs, subs_id, item):
 
 
 def download_youtube_subs(youtube_subs, item):
-    """Download subtitles from Youtube using `youtube_ids`, and
+    """Download transcripts from Youtube using `youtube_ids`, and
     save them to assets for `item` module."""
     html_parser = HTMLParser.HTMLParser()
     status_dict = {}
 
-    # Iterate from lowest to highest speed and try to do download subtitles
+    # Iterate from lowest to highest speed and try to do download transcripts
     # from the Youtube service.
     for speed, youtube_id in sorted(youtube_subs.iteritems()):
         if not youtube_id:
@@ -326,7 +326,7 @@ def download_youtube_subs(youtube_subs, item):
 
         if data.status_code != 200 or not data.text:
             status_dict.update({speed: False})
-            log.error("Can't recieved correct subtitles from Youtube.")
+            log.error("Can't recieved correct transcripts from Youtube.")
             continue
 
         sub_starts = []
@@ -358,7 +358,7 @@ def download_youtube_subs(youtube_subs, item):
         save_subs_to_store(subs, youtube_id, item)
 
         log.info(
-            """Subtitles for Youtube ID {0} (speed {1})
+            """transcripts for Youtube ID {0} (speed {1})
             are downloaded from Youtube and
             saved.""".format(youtube_id, speed)
         )
@@ -366,16 +366,16 @@ def download_youtube_subs(youtube_subs, item):
         status_dict.update({speed: True})
 
     if not any(status_dict.itervalues()):
-        log.error("Can't find any subtitles on the Youtube service.")
+        log.error("Can't find any transcripts on the Youtube service.")
         return False
 
     # When we exit from the previous loop, `available_speed` and `subs`
-    # are the subtitles data with the highest speed available on the
+    # are the transcripts data with the highest speed available on the
     # Youtube service. We use the highest speed as main speed for the
-    # generation other subtitles, cause during calculation timestamps
+    # generation other transcripts, cause during calculation timestamps
     # for lower speeds we just use multiplication istead of division.
 
-    # Generate subtitles for missed speeds.
+    # Generate transcripts for missed speeds.
     for speed, status in status_dict.iteritems():
         if not status:
             save_subs_to_store(
@@ -384,7 +384,7 @@ def download_youtube_subs(youtube_subs, item):
                 item)
 
             log.info(
-                """Subtitles for Youtube ID {0} (speed {1})
+                """transcripts for Youtube ID {0} (speed {1})
                 are generated from Youtube ID {2} (speed {3}) and
                 saved.""".format(
                 youtube_subs[speed],
@@ -397,7 +397,7 @@ def download_youtube_subs(youtube_subs, item):
 
 
 def remove_subs_from_store(subs_id, item):
-    """Remove from store, if subtitles content exists."""
+    """Remove from store, if transcripts content exists."""
     filename = 'subs_{0}.srt.sjson'.format(subs_id)
     content_location = StaticContent.compute_location(
         item.location.org, item.location.course, filename)
@@ -408,8 +408,8 @@ def remove_subs_from_store(subs_id, item):
         pass
 
 
-def manage_video_subtitles(old_item, new_item):
-    """Function for managing subtitles."""
+def manage_video_transcripts(old_item, new_item):
+    """Function for managing transcripts."""
 
     youtube_subs = {
         0.75: new_item.youtube_id_0_75,
@@ -418,13 +418,13 @@ def manage_video_subtitles(old_item, new_item):
         1.5: new_item.youtube_id_1_5
     }
 
-    # If user has changed YT id, we remove subtitles.
+    # If user has changed YT id, we remove transcripts.
     if new_item.youtube_id_1_0 != old_item.youtube_id_1_0:
         for youtube_id in youtube_subs.values():
             if youtube_id:
                 remove_subs_from_store(youtube_id, new_item)
 
-    # If user has changed HTML5 sources, we remove subtitles.
+    # If user has changed HTML5 sources, we remove transcripts.
     old_src = set([src for src in old_item.html5_sources if src])
     new_src = set([src for src in new_item.html5_sources if src])
     if (old_src - new_src) and old_item.sub:
@@ -435,14 +435,14 @@ def manage_video_subtitles(old_item, new_item):
             store = get_modulestore(Location(new_item.location))
             store.update_metadata(new_item.location, own_metadata(new_item))
 
-    # Always download fresh subtitles from Youtube service if video
+    # Always download fresh transcripts from Youtube service if video
     # module has youtube type.
     if new_item.youtube_id_1_0:
         download_youtube_subs(youtube_subs, new_item)
 
 
 def generate_subs_from_source(speed_subs, subs_type, subs_filedata, item):
-    """Generate subtitles from source files (like SubRip format, etc.)
+    """Generate transcripts from source files (like SubRip format, etc.)
     and save them to assets for `item` module.
     We expect, that speed of source subs equal to 1
 
@@ -455,12 +455,12 @@ def generate_subs_from_source(speed_subs, subs_type, subs_filedata, item):
     html_parser = HTMLParser.HTMLParser()
 
     if subs_type != 'srt':
-        log.error("We support only SubRip (*.srt) subtitles format.")
+        log.error("We support only SubRip (*.srt) transcripts format.")
         return False
 
     srt_subs_obj = SubRipFile.from_string(subs_filedata)
     if not srt_subs_obj:
-        log.error("Something wrong with SubRip subtitles file during parsing.")
+        log.error("Something wrong with SubRip transcripts file during parsing.")
         return False
 
     sub_starts = []
@@ -487,7 +487,7 @@ def generate_subs_from_source(speed_subs, subs_type, subs_filedata, item):
 
 
 def generate_srt_from_sjson(sjson_subs, speed):
-    """Generate subtitles with speed = 1.0 from sjson to SubRip (*.srt).
+    """Generate transcripts with speed = 1.0 from sjson to SubRip (*.srt).
 
     :param sjson_subs: "sjson" subs.
     :param speed: speed of `sjson_subs`.
