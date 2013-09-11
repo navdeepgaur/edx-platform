@@ -22,7 +22,9 @@ from xmodule.exceptions import NotFoundError
 from util.json_request import expect_json, JsonResponse
 from ..utils import (get_modulestore, manage_video_transcripts,
                      return_ajax_status, generate_subs_from_source,
-                     generate_srt_from_sjson, requests as rqsts)
+                     generate_srt_from_sjson, remove_subs_from_store,
+                     save_subs_to_store, requests as rqsts,
+                     download_youtube_subs)
 from .access import has_access
 from .requests import _xmodule_recurse
 from xmodule.x_module import XModuleDescriptor
@@ -243,6 +245,7 @@ def upload_transcripts(request):
 
     if any(speed_subs.values()) and not any(item.html5_sources):
         log.error("Converting transcripts to youtube modules.")
+        # do it here
         return False
     elif any(item.html5_sources):
         sub_attr = slugify(source_subs_name)
@@ -341,24 +344,7 @@ def check_transcripts(request):
         'youtube_server': False,
         'status': 'Error'
     }
-    data = json.loads(request.GET.get('data', '[]'))
-    if not data:
-        log.error('Incoming video data is empty.')
-        return JsonResponse(transcripts_presence)
-    item_location = data.get('id')
-    try:
-        item = modulestore().get_item(item_location)
-    except (ItemNotFoundError, InvalidLocationError):
-        log.error("Can't find item by location.")
-        return JsonResponse(transcripts_presence)
-
-    # Check permissions for this user within this course.
-    if not has_access(request.user, item_location):
-        raise PermissionDenied()
-
-    if item.category != 'video':
-        log.error('transcripts are supported only for "video" modules.')
-        return JsonResponse(transcripts_presence)
+    data, item = validate_transcripts_data(request, transcripts_presence)
 
     transcripts_presence['status'] = 'Success'
 
@@ -410,15 +396,87 @@ def check_transcripts(request):
 def choose_transcripts(request):
     """
     Replaces html5 subtitles, presented for both html5 sources,
-    with choosen one.
+    with chosen one.
+
+    1. Remove rejeceted html5 subtitles
+    2. Update sub attribute with correct html5_id
+
+    Do nothing with youtube id's.
     """
-    pass
+    response = {'status': 'Error'}
+    data, item = validate_transcripts_data(request, response)
+
+    # preprocess data
+    videos = {'html5': {}}
+    for video_data in data.get('videos'):
+        videos['html5'][video_data['video']] = video_data['mode']
+
+    html5_id = data.get('html5_id')
+
+    # find rejected html5_id and remove appropriate subs from store
+    html5_id_to_remove = [x for x in videos['html5'] if x != html5_id]
+    remove_subs_from_store(html5_id_to_remove, item)
+
+    # update sub value
+    if item.sub != slugify(html5_id):
+        item.sub = slugify(html5_id)
+        item.save()
+    response['status'] = 'Success'
+    return JsonResponse(response)
+
 
 def replace_transcripts(request):
     """
     Replaces all transcripts with youtube ones.
     """
-    pass
+    response = {'status': 'Error'}
+    data, item = validate_transcripts_data(request, response)
+
+    # preprocess data
+    youtube_id = None
+    for video_data in data.get('videos'):
+        if video_data['type'] == 'youtube':
+            youtube_id = video_data['type']
+            break
+
+    if not youtube_id:
+        return JsonResponse(response)
+
+    download_youtube_subs(youtube_id, item)
+    item.sub = slugify(youtube_id)
+    item.save()
+    response['status'] = 'Success'
+    return JsonResponse(response)
+
+
+def validate_transcripts_data(request, response):
+    """
+    Validates, that request containts all proper data for transcripts processing.
+
+    Returns parsed data from request and video item from store.
+    """
+
+    data = json.loads(request.GET.get('data', '[]'))
+    if not data:
+        log.error('Incoming video data is empty.')
+        return JsonResponse(response)
+
+    item_location = data.get('id')
+    try:
+        item = modulestore().get_item(item_location)
+    except (ItemNotFoundError, InvalidLocationError):
+        log.error("Can't find item by location.")
+        return JsonResponse(response)
+
+    # Check permissions for this user within this course.
+    if not has_access(request.user, item_location):
+        raise PermissionDenied()
+
+    if item.category != 'video':
+        log.error('transcripts are supported only for "video" modules.')
+        return JsonResponse(response)
+
+    return data, item
 
 
 @login_required
