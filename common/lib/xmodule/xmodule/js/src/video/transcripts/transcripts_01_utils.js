@@ -149,7 +149,7 @@
 
                 xhr = $.ajax({
                     url: '/transcripts/' + action,
-                    data: JSON.stringify(data),
+                    data: { data: JSON.stringify(data) },
                     type: 'get'
                 });
 

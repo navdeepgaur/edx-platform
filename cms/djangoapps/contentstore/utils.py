@@ -310,7 +310,10 @@ def save_subs_to_store(subs, subs_id, item):
 
 def download_youtube_subs(youtube_subs, item):
     """Download transcripts from Youtube using `youtube_ids`, and
-    save them to assets for `item` module."""
+    save them to assets for `item` module.
+
+    Test: http://video.google.com/timedtext?lang=en&v=j_jEn79vS3g
+    """
     html_parser = HTMLParser.HTMLParser()
     status_dict = {}
 

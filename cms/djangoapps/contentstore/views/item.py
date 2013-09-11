@@ -326,19 +326,26 @@ def download_transcripts(request):
 
 
 def check_transcripts(request):
-    """Check transcripts availability for current modules."""
+    """Check transcripts availability for current modules.
+
+    request.GET has key data, which can contain any of the following::
+    [
+        {u'type': u'youtube', u'video': u'OEoXaMPEzfM', u'mode': u'youtube'},
+        {u'type': u'html5',    u'video': u'video1',             u'mode': u'mp4'}
+        {u'type': u'html5',    u'video': u'video2',             u'mode': u'webm'}
+    ]
+    """
     transcripts_presence = {
-        'html5_local': False,
+        'html5_local': [],
         'youtube_local': False,
         'youtube_server': False,
         'status': 'Error'
     }
-    video_id = request.POST.get('video_id')
-    if not video_id:
-        log.error('Incoming data without "video_id" property.')
+    data = json.loads(request.GET.get('data', '[]'))
+    if not data:
+        log.error('Incoming video data is empty.')
         return JsonResponse(transcripts_presence)
-
-    item_location = request.POST.get('id')
+    item_location = data.get('id')
     try:
         item = modulestore().get_item(item_location)
     except (ItemNotFoundError, InvalidLocationError):
@@ -355,34 +362,48 @@ def check_transcripts(request):
 
     transcripts_presence['status'] = 'Success'
 
-    # Check for youtube local transcripts presense
-    filename = 'subs_{0}.srt.sjson'.format(video_id)
-    content_location = StaticContent.compute_location(
-        item.location.org, item.location.course, filename)
-    try:
-        contentstore().find(content_location)
-        transcripts_presence['youtube_local'] = True
-    except NotFoundError:
-        log.error("Can't find transcripts in storage for youtube id: {}".format(video_id))
+    # preprocess data
+    videos = {'youtube': '', 'html5': {}}
+    for video_data in data.get('videos'):
+        if video_data['type'] == 'youtube':
+            videos['youtube'] = video_data['video']
+        else:  # do not add same html5 videos
+            if videos['html5'].get('video') != video_data['video']:
+                videos['html5'][video_data['video']] = video_data['mode']
 
-    # Check for youtube server transcripts presence
-    data = rqsts.get(
-        "http://video.google.com/timedtext",
-        params={'lang': 'en', 'v': video_id}
-    )
-    if data.status_code == 200 and data.text:
-        transcripts_presence['youtube_server'] = True
+    # Check for youtube transcripts presence
+    youtube_id = videos.get('youtube', None)
+    if youtube_id:
+
+        # youtube local
+        filename = 'subs_{0}.srt.sjson'.format(youtube_id)
+        content_location = StaticContent.compute_location(
+            item.location.org, item.location.course, filename)
+        try:
+            contentstore().find(content_location)
+            transcripts_presence['youtube_local'] = True
+        except NotFoundError:
+            log.debug("Can't find transcripts in storage for youtube id: {}".format(youtube_id))
+
+        # youtube server
+        youtube_response = rqsts.get(
+            "http://video.google.com/timedtext",
+            params={'lang': 'en', 'v': youtube_id}
+        )
+        if youtube_response.status_code == 200 and youtube_response.text:
+            transcripts_presence['youtube_server'] = True
 
     # Check for html5 local transcripts presence
-    filename = 'subs_{0}.srt.sjson'.format(video_id)
-    content_location = StaticContent.compute_location(
-        item.location.org, item.location.course, filename)
-    try:
-        contentstore().find(content_location)
-        transcripts_presence['html5_local'] = True
-    except NotFoundError:
-        log.error("Can't find transcripts in storage for non-youtube video_id: {}".format(video_id))
-
+    for html5_id in videos:
+        filename = 'subs_{0}.srt.sjson'.format(html5_id)
+        content_location = StaticContent.compute_location(
+            item.location.org, item.location.course, filename)
+        try:
+            contentstore().find(content_location)
+            transcripts_presence['html5_local'].append(True)
+        except NotFoundError:
+            # change to log.message?
+            log.debug("Can't find transcripts in storage for non-youtube video_id: {}".format(html5_id))
     return JsonResponse(transcripts_presence)
 
 
