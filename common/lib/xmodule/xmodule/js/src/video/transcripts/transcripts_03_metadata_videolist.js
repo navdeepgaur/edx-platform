@@ -172,17 +172,25 @@
 
             utils.command('check', this.component_id, videoList)
                 .done(function (resp) {
-                    if (resp.youtube_local && resp.youtube_server) {
-                        self.messanger.render('conflict');
-                    } else if (resp.youtube_local || resp.html5_local) {
+                    // youtube_server = bool
+                    // youtube_local = bool
+                    // html5_local = Array
+                    // diff = bool
+
+                    if (!youtube_local && youtube_server) {
+                        self.messanger.render('on_youtube'); // import
+                    } else if (youtube_local && youtube_server && diff) {
+                        self.messanger.render('conflict'); // replace
+                    } else if (!youtube_local && !youtube_server && 
+                        html5.length == 2 && diff) {
+                        self.messanger.render('choose'); // choose                        
+                    } else if ((html5.length !== 0 || youtube_local) && !diff)  {
                         self.messanger.render('found');
-                    } else if (resp.youtube_server) {
-                        self.messanger.render('on_youtube');
                     } else {
                         self.messanger.render('not_found');
                     }
                 })
-                .fail(function (resp) {
+                .fail(function (resp) { 
                     self.messanger.render('not_found');
                 });
 
