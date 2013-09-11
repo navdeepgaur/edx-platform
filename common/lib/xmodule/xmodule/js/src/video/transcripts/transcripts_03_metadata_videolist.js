@@ -142,8 +142,8 @@
             }
         },
 
-        isUniq: function (dataList) {
-            var arr = _.pluck(dataList, 'type'),
+        isUniqVideoTypes: function (videoList) {
+            var arr = _.pluck(videoList, 'type'),
                 uniqArr = _.uniq(arr);
 
             return arr.length === uniqArr.length;
@@ -151,9 +151,10 @@
 
         checkValidity: function (data, showErrorModeMessage) {
             var self = this,
-                dataList = this.getVideoObjectsList();
+                utils = Transcripts.Utils,
+                videoList = this.getVideoObjectsList();
 
-            if (!this.isUniq(dataList)) {
+            if (!this.isUniqVideoTypes(videoList)) {
                 this.messanger
                     .render('not_found')
                     .showError('Link types should be unique.', true);
@@ -169,7 +170,7 @@
                 return false;
             }
 
-            this.fetchCaptions(dataList)
+            utils.command('check', this.component_id, videoList)
                 .done(function (resp) {
                     if (resp.youtube_local && resp.youtube_server) {
                         self.messanger.render('conflict');
@@ -187,26 +188,6 @@
 
             console.log(data);
             return true;
-        },
-
-        fetchCaptions: function (dataList) {
-            var data = this.prepareRequestData(dataList);
-
-            if (this.xhr && this.xhr.abort) {
-                this.xhr.abort();
-            }
-
-            this.xhr = $.ajax({
-                url: '/check_subtitles',
-                data: data,
-                type: 'post'
-            });
-
-            return this.xhr;
-        },
-
-        prepareRequestData: function (data) {
-            return $.extend({id: this.component_id}, {data: data});
         }
     });
 }(this));

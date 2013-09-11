@@ -123,13 +123,48 @@
             });
         };
 
+        var _command = (function () {
+            var xhr = null;
+
+            return function (action, component_id, videoList, extraParams) {
+                var params, data;                    
+
+                if (extraParams) {
+                    if ($.isPlainObject(extraParams)) {
+                        params = extraParams;   
+                    } else {
+                        params = {params: extraParams};   
+                    }
+                }
+
+                data = $.extend(
+                    { id: component_id }, 
+                    { videos: videoList },
+                    params
+                );
+
+                if (xhr && xhr.abort) {
+                    xhr.abort();
+                }
+
+                xhr = $.ajax({
+                    url: '/transcripts/' + action,
+                    data: JSON.stringify(data),
+                    type: 'get'
+                });
+
+                return xhr;
+            };
+        }());
+
         return {
             getField: _getField,
             parseYoutubeLink: _youtubeParser,
             parseHTML5Link: _videoLinkParser,
             parseLink: _linkParser,
             getYoutubeLink: _getYoutubeLink,
-            syncCollections: _syncCollections
+            syncCollections: _syncCollections,
+            command: _command
         };
     }());
 }(this));
